@@ -198,7 +198,105 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        self.moves_made.add(cell)
+
+        self.mark_safe(cell)
+
+        neighbors = []
+
+        for i in range(cell[0] - 1, cell[0] + 2):
+
+            for j in range(cell[1] - 1, cell[1] + 2):
+
+                if (i, j) == cell:
+
+                    continue
+
+                if 0 <= i < self.height and 0 <= j < self.width:
+
+                    neighbors.append((i, j))
+
+        unknown_neighbors = []
+
+        mines_count = count
+
+        
+
+        for neighbor in neighbors:
+
+            if neighbor in self.mines:
+
+                mines_count -= 1
+
+            elif neighbor not in self.safes:
+
+                unknown_neighbors.append(neighbor)
+
+        if unknown_neighbors:
+
+            new_sentence = Sentence(unknown_neighbors, mines_count)
+
+            self.knowledge.append(new_sentence)
+
+        changed = True
+
+        while changed:
+
+            changed = False
+
+            new_mines = set()
+
+            new_safes = set()
+
+            for sentence in self.knowledge:
+
+                new_mines.update(sentence.known_mines())
+
+                new_safes.update(sentence.known_safes())
+
+            for mine in new_mines:
+
+                if mine not in self.mines:
+
+                    self.mark_mine(mine)
+
+                    changed = True
+
+            for safe in new_safes:
+
+                if safe not in self.safes:
+
+                    self.mark_safe(safe)
+
+                    changed = True
+
+            self.knowledge = [s for s in self.knowledge if len(s.cells) > 0]
+
+            new_sentences = []
+
+            for i, sentence1 in enumerate(self.knowledge):
+
+                for j, sentence2 in enumerate(self.knowledge):
+
+                    if i != j:
+
+                        if sentence1.cells.issubset(sentence2.cells):
+
+                            new_cells = sentence2.cells - sentence1.cells
+
+                            new_count = sentence2.count - sentence1.count
+
+                            if new_cells and new_count >= 0:
+
+                                new_sentence = Sentence(new_cells, new_count)
+
+                                if new_sentence not in self.knowledge and new_sentence not in new_sentences:
+
+                                    new_sentences.append(new_sentence)
+
+                                    changed = True
+
+            self.knowledge.extend(new_sentences)
 
     def make_safe_move(self):
         """
