@@ -373,14 +373,13 @@ class MinesweeperAI():
         if not unknown_cells:
             return probabilities
         
-        # Para cada célula desconhecida, contar em quantas sentenças aparece
         for cell in unknown_cells:
             total_weight = 0
             mine_weight = 0
             
             for sentence in self.knowledge:
                 if cell in sentence.cells and len(sentence.cells) > 0:
-                    # Probabilidade baseada na sentença
+
                     prob = sentence.count / len(sentence.cells)
                     total_weight += 1
                     mine_weight += prob
@@ -388,8 +387,8 @@ class MinesweeperAI():
             if total_weight > 0:
                 probabilities[cell] = mine_weight / total_weight
             else:
-                # Probabilidade global baseada em minas restantes
-                total_mines = 8  # ou self.total_mines se adicionares ao __init__
+
+                total_mines = 8
                 mines_found = len(self.mines)
                 remaining_mines = total_mines - mines_found
                 probabilities[cell] = remaining_mines / len(unknown_cells)
