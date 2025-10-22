@@ -349,3 +349,49 @@ class MinesweeperAI():
             return random.choice(possible_moves)
 
         return None
+
+    def get_unknown_cells(self):
+        """
+        Retorna o conjunto de todas as células não reveladas e não marcadas como minas.
+        """
+        unknown = set()
+        for i in range(self.height):
+            for j in range(self.width):
+                cell = (i, j)
+                if cell not in self.moves_made and cell not in self.mines:
+                    unknown.add(cell)
+        return unknown
+    
+    def calculate_probabilities(self):
+        """
+        Calcula a probabilidade de cada célula desconhecida ser uma mina.
+        Retorna um dicionário {célula: probabilidade}.
+        """
+        probabilities = {}
+        unknown_cells = self.get_unknown_cells()
+        
+        if not unknown_cells:
+            return probabilities
+        
+        # Para cada célula desconhecida, contar em quantas sentenças aparece
+        for cell in unknown_cells:
+            total_weight = 0
+            mine_weight = 0
+            
+            for sentence in self.knowledge:
+                if cell in sentence.cells and len(sentence.cells) > 0:
+                    # Probabilidade baseada na sentença
+                    prob = sentence.count / len(sentence.cells)
+                    total_weight += 1
+                    mine_weight += prob
+            
+            if total_weight > 0:
+                probabilities[cell] = mine_weight / total_weight
+            else:
+                # Probabilidade global baseada em minas restantes
+                total_mines = 8  # ou self.total_mines se adicionares ao __init__
+                mines_found = len(self.mines)
+                remaining_mines = total_mines - mines_found
+                probabilities[cell] = remaining_mines / len(unknown_cells)
+        
+        return probabilities
