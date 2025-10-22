@@ -149,20 +149,14 @@ class MinesweeperAI():
     Minesweeper game player
     """
 
-    def __init__(self, height=8, width=8):
-
-        # Set initial height and width
+    def __init__(self, height=8, width=8, mines=8):
         self.height = height
         self.width = width
-
-        # Keep track of which cells have been clicked on
+        self.total_mines = mines  # Nova linha
+        
         self.moves_made = set()
-
-        # Keep track of cells known to be safe or mines
         self.mines = set()
         self.safes = set()
-
-        # List of sentences about the game known to be true
         self.knowledge = []
 
     def mark_mine(self, cell):
@@ -322,33 +316,17 @@ class MinesweeperAI():
 
     def make_random_move(self):
         """
-        Returns a move to make on the Minesweeper board.
-        Should choose randomly among cells that:
-            1) have not already been chosen, and
-            2) are not known to be mines
+        Retorna uma jogada no tabuleiro de Minesweeper.
+        Escolhe a célula com menor probabilidade de ser uma mina.
         """
-
-        all_cells = []
-
-        for i in range(self.height):
-
-            for j in range(self.width):
-
-                all_cells.append((i, j))
-
-        possible_moves = []
-
-        for cell in all_cells:
-
-            if cell not in self.moves_made and cell not in self.mines:
-
-                possible_moves.append(cell)
-
-        if possible_moves:
-
-            return random.choice(possible_moves)
-
-        return None
+        probabilities = self.calculate_probabilities()
+        
+        if not probabilities:
+            return None
+        
+        # Escolher a célula com menor probabilidade
+        best_move = min(probabilities.items(), key=lambda x: x[1])
+        return best_move[0]
 
     def get_unknown_cells(self):
         """
