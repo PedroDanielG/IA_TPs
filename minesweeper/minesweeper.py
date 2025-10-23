@@ -363,9 +363,32 @@ class MinesweeperAI():
             if total_weight > 0:
                 probabilities[cell] = mine_weight / total_weight
             else:
-                
+
                 mines_found = len(self.mines)
                 remaining_mines = self.total_mines - mines_found
                 probabilities[cell] = remaining_mines / len(unknown_cells)
         
         return probabilities
+    
+    def get_probability_color(self, probability):
+        """
+        Devolve uma cor consoante a probabilidade de ser mina.
+        Verde (baixa) | Amarelo (media) | Vermelho (alta)
+        """
+        if probability <= 0.33:
+
+            r = int(255 * (probability / 0.33))
+            g = 255
+            b = 0
+        elif probability <= 0.66:
+
+            r = 255
+            g = int(255 * (1 - (probability - 0.33) / 0.33))
+            b = 0
+        else:
+
+            r = 255
+            g = int(100 * (1 - (probability - 0.66) / 0.34))
+            b = 0
+        
+        return (r, g, b)
