@@ -1,6 +1,7 @@
 import pygame
 import sys
 import time
+import math
 
 from minesweeper import Minesweeper, MinesweeperAI
 
@@ -12,6 +13,7 @@ MINES = 8
 BLACK = (0, 0, 0)
 GRAY = (180, 180, 180)
 WHITE = (255, 255, 255)
+BLUE = (100, 150, 255)
 
 # Create game
 pygame.init()
@@ -48,6 +50,33 @@ lost = False
 
 # Show instructions initially
 instructions = True
+
+show_heatmap = False # Boolean para mostrar heatmap de probabilidades
+pulse_timer = 0 # Variável para animação pulsing
+
+def draw_heatmap_overlay(screen, ai, cells, cell_size, pulse_alpha):
+    """
+    Desenha o overlay do heat map de probabilidades
+    """
+    probabilities = ai.calculate_probabilities()
+    
+    for cell, prob in probabilities.items():
+        i, j = cell
+        if cell not in revealed and cell not in flags:
+
+            color = ai.get_probability_color(prob)
+            
+            overlay = pygame.Surface((cell_size, cell_size))
+            overlay.set_alpha(int(150 + 50 * prob * pulse_alpha))  # Varia com animação
+            overlay.fill(color)
+            
+            screen.blit(overlay, cells[i][j])
+            
+            prob_text = smallFont.render(f"{int(prob * 100)}%", True, BLACK)
+            prob_rect = prob_text.get_rect()
+            prob_rect.center = cells[i][j].center
+            screen.blit(prob_text, prob_rect)
+
 
 while True:
 
@@ -98,6 +127,10 @@ while True:
         pygame.display.flip()
         continue
 
+    # Atualizar timer de animação
+    pulse_timer += 0.1
+    pulse_alpha = (math.sin(pulse_timer) + 1) / 2  # Valor entre 0 e 1
+
     # Draw board
     cells = []
     for i in range(HEIGHT):
@@ -130,6 +163,10 @@ while True:
             row.append(rect)
         cells.append(row)
 
+    # Desenhar heat map se ativado
+    if show_heatmap and not lost:
+        draw_heatmap_overlay(screen, ai, cells, cell_size, pulse_alpha)
+
     # AI Move button
     aiButton = pygame.Rect(
         (2 / 3) * width + BOARD_PADDING, (1 / 3) * height - 50,
@@ -141,9 +178,22 @@ while True:
     pygame.draw.rect(screen, WHITE, aiButton)
     screen.blit(buttonText, buttonRect)
 
+    # Heat Map Toggle button
+    heatmapButton = pygame.Rect(
+        (2 / 3) * width + BOARD_PADDING, (1 / 3) * height + 20,
+        (width / 3) - BOARD_PADDING * 2, 50
+    )
+    heatmap_text = "Hide Map" if show_heatmap else "Show Map"
+    buttonText = mediumFont.render(heatmap_text, True, BLACK)
+    buttonRect = buttonText.get_rect()
+    buttonRect.center = heatmapButton.center
+    button_color = BLUE if show_heatmap else WHITE
+    pygame.draw.rect(screen, button_color, heatmapButton)
+    screen.blit(buttonText, buttonRect)
+
     # Reset button
     resetButton = pygame.Rect(
-        (2 / 3) * width + BOARD_PADDING, (1 / 3) * height + 20,
+        (2 / 3) * width + BOARD_PADDING, (1 / 3) * height + 90,
         (width / 3) - BOARD_PADDING * 2, 50
     )
     buttonText = mediumFont.render("Reset", True, BLACK)
@@ -190,6 +240,11 @@ while True:
                     print("No known safe moves, AI making random move.")
             else:
                 print("AI making safe move.")
+            time.sleep(0.2)
+
+        # Toggle heat map
+        elif heatmapButton.collidepoint(mouse):
+            show_heatmap = not show_heatmap
             time.sleep(0.2)
 
         # Reset game state
