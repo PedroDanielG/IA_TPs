@@ -51,8 +51,11 @@ lost = False
 # Show instructions initially
 instructions = True
 
-show_heatmap = False # Boolean para mostrar heatmap de probabilidades
-pulse_timer = 0 # Variável para animação pulsing
+# Toggle para mostrar heat map de probabilidades
+show_heatmap = False
+
+# Variável para animação pulsante
+pulse_timer = 0
 
 def draw_heatmap_overlay(screen, ai, cells, cell_size, pulse_alpha):
     """
@@ -63,20 +66,22 @@ def draw_heatmap_overlay(screen, ai, cells, cell_size, pulse_alpha):
     for cell, prob in probabilities.items():
         i, j = cell
         if cell not in revealed and cell not in flags:
-
+            # Obter cor baseada na probabilidade
             color = ai.get_probability_color(prob)
             
+            # Criar superfície transparente
             overlay = pygame.Surface((cell_size, cell_size))
-            overlay.set_alpha(int(150 + 50 * prob * pulse_alpha))  # Varia com animação
+            overlay.set_alpha(int(150 + 50 * prob * pulse_alpha))
             overlay.fill(color)
             
+            # Desenhar overlay
             screen.blit(overlay, cells[i][j])
             
+            # Adicionar texto com probabilidade
             prob_text = smallFont.render(f"{int(prob * 100)}%", True, BLACK)
             prob_rect = prob_text.get_rect()
             prob_rect.center = cells[i][j].center
             screen.blit(prob_text, prob_rect)
-
 
 while True:
 
@@ -240,7 +245,7 @@ while True:
                     print("No known safe moves, AI making random move.")
             else:
                 print("AI making safe move.")
-            time.sleep(0.2)
+            time.sleep(0.3)
 
         # Toggle heat map
         elif heatmapButton.collidepoint(mouse):
