@@ -304,8 +304,6 @@ class MinesweeperAI():
 
         safe_moves = self.safes - self.moves_made
 
-        
-
         if safe_moves:
 
             return safe_moves.pop()
@@ -365,10 +363,9 @@ class MinesweeperAI():
             if total_weight > 0:
                 probabilities[cell] = mine_weight / total_weight
             else:
-
-                total_mines = 8
+                
                 mines_found = len(self.mines)
-                remaining_mines = total_mines - mines_found
+                remaining_mines = self.total_mines - mines_found
                 probabilities[cell] = remaining_mines / len(unknown_cells)
         
         return probabilities
