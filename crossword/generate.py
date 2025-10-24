@@ -1,4 +1,6 @@
 import sys
+import os
+import re
 from collections import deque
 from typing import Dict, Set, List, Optional, Tuple, Any
 
@@ -10,7 +12,6 @@ Domain = Dict[Variable, Set[str]]
 
 
 class CrosswordCreator:
-
     def __init__(self, crossword: Crossword):
         """
         Create new CSP crossword generator.
@@ -18,16 +19,11 @@ class CrosswordCreator:
         self.crossword = crossword
         self.domains: Domain = {}
         
-        # Initialize domains: using words_by_length from the refactored Crossword (OPTIMIZATION)
         for var in self.crossword.variables:
             # Use the pre-filtered set of words for the correct length
             self.domains[var] = self.crossword.words_by_length.get(var.length, set()).copy()
 
-    # ... (letter_grid, print, save methods remain largely the same, with type hints added)
     def letter_grid(self, assignment: Assignment) -> List[List[Optional[str]]]:
-        """
-        Return 2D array representing a given assignment.
-        """
         letters: List[List[Optional[str]]] = [
             [None for _ in range(self.crossword.width)]
             for _ in range(self.crossword.height)
@@ -45,19 +41,22 @@ class CrosswordCreator:
         Print crossword assignment to the terminal.
         """
         letters = self.letter_grid(assignment)
+        # Melhoria na impressão para melhor visualização na CLI
+        print("\n" + "=" * (self.crossword.width * 2 + 2))
         for i in range(self.crossword.height):
+            print("█", end="")
             for j in range(self.crossword.width):
                 if self.crossword.structure[i][j]:
-                    print(letters[i][j] or " ", end="")
+                    print(letters[i][j] or " ", end=" ")
                 else:
-                    print("█", end="")
-            print()
+                    print("█", end=" ")
+            print("█")
+        print("=" * (self.crossword.width * 2 + 2) + "\n")
 
     def save(self, assignment: Assignment, filename: str) -> None:
         """
         Save crossword assignment to an image file.
         """
-        # NOTE: This function requires the Pillow library and the specific font file
         try:
             from PIL import Image, ImageDraw, ImageFont
         except ImportError:
@@ -77,7 +76,6 @@ class CrosswordCreator:
             "black"
         )
         try:
-            # Tenta carregar a fonte, senão usa a default
             font = ImageFont.truetype("assets/fonts/OpenSans-Regular.ttf", 80)
         except IOError:
             font = ImageFont.load_default()
@@ -110,30 +108,20 @@ class CrosswordCreator:
 
         img.save(filename)
 
-
     def solve(self) -> Optional[Assignment]:
         """
-        Enforce arc consistency, and then solve the CSP.
+        Enforce node and arc consistency, and then solve the CSP.
         """
-        self.ac3() # Run AC3 once before backtracking
+        self.ac3()
         return self.backtrack(dict())
 
     def enforce_node_consistency(self) -> None:
-        """
-        This function is now largely redundant due to pre-filtering in __init__
-        but is kept for completeness.
-        """
         for variable in self.domains:
             self.domains[variable] = {
                 word for word in self.domains[variable] if len(word) == variable.length
             }
 
     def revise(self, x: Variable, y: Variable) -> bool:
-        """
-        Make variable `x` arc consistent with variable `y`.
-        Return True if a revision was made to the domain of `x`; return False otherwise.
-        (OPTIMIZATION: Uses set comprehension for faster checking)
-        """
         revised = False
         overlap = self.crossword.overlaps.get((x, y))
         
@@ -143,13 +131,11 @@ class CrosswordCreator:
         i, j = overlap  # i is index in x, j is index in y
         
         # Optimization: Find all characters present at position j in domain y
-        # This is O(|D_y|)
         compatible_chars_y = {word_y[j] for word_y in self.domains[y]}
         
         words_to_remove = set()
         for word_x in self.domains[x]:
             # Check if word_x's character at position i is compatible with any char in y's domain
-            # This check is O(1) due to the set lookup
             if word_x[i] not in compatible_chars_y:
                 words_to_remove.add(word_x)
         
@@ -160,9 +146,6 @@ class CrosswordCreator:
         return revised
 
     def ac3(self, arcs: Optional[List[Tuple[Variable, Variable]]] = None) -> bool:
-        """
-        Update `self.domains` such that each variable is arc consistent.
-        """
         if arcs is None:
             queue = deque()
             for x in self.crossword.variables:
@@ -181,21 +164,14 @@ class CrosswordCreator:
                 
                 for z in self.crossword.neighbors(x):
                     if z != y:
-                        # Only add the arc (z, x), not (x, z)
                         queue.append((z, x))
         
         return True
 
     def assignment_complete(self, assignment: Assignment) -> bool:
-        """
-        Return True if `assignment` is complete.
-        """
         return len(assignment) == len(self.crossword.variables)
 
     def consistent(self, assignment: Assignment) -> bool:
-        """
-        Return True if `assignment` is consistent.
-        """
         # 1. Check if all values are distinct
         values = list(assignment.values())
         if len(values) != len(set(values)):
@@ -214,10 +190,6 @@ class CrosswordCreator:
         return True
 
     def order_domain_values(self, var: Variable, assignment: Assignment) -> List[str]:
-        """
-        Return a list of values in the domain of `var`, in order by
-        the number of values they rule out for neighboring variables (LCV heuristic).
-        """
         def count_eliminations(value: str) -> int:
             """Count how many values this choice eliminates from unassigned neighbors"""
             eliminations = 0
@@ -229,7 +201,6 @@ class CrosswordCreator:
                         i, j = overlap
                         
                         # Count how many values in neighbor's domain would be eliminated
-                        # This check is now faster due to the optimized revise logic
                         for neighbor_value in self.domains[neighbor]:
                             if value[i] != neighbor_value[j]:
                                 eliminations += 1
@@ -240,10 +211,6 @@ class CrosswordCreator:
         return sorted(list(self.domains[var]), key=count_eliminations)
 
     def select_unassigned_variable(self, assignment: Assignment) -> Optional[Variable]:
-        """
-        Return an unassigned variable using the MRV (Minimum Remaining Value)
-        and Degree heuristics.
-        """
         unassigned = [v for v in self.crossword.variables if v not in assignment]
         
         if not unassigned:
@@ -256,10 +223,6 @@ class CrosswordCreator:
         return min(unassigned, key=sort_key)
 
     def backtrack(self, assignment: Assignment) -> Optional[Assignment]:
-        """
-        Using Backtracking Search with Forward Checking, return a complete assignment.
-        (OPTIMIZATION: Uses Forward Checking instead of full AC3 at each step)
-        """
         if self.assignment_complete(assignment):
             return assignment
         
@@ -271,24 +234,23 @@ class CrosswordCreator:
         # Try each value in the domain of var (ordered by LCV)
         for value in self.order_domain_values(var, assignment):
             
-            # 1. Check local consistency (against already assigned neighbors)
+            # 1. Check local consistency (only against already assigned neighbors)
             temp_assignment = assignment.copy()
             temp_assignment[var] = value
             if not self.consistent(temp_assignment):
                 continue
 
-            # 2. Forward Checking Setup: Save current domains to restore them on backtrack
-            # We only need to save the domains of the unassigned neighbors of var
-            old_domains: Domain = {
-                v: self.domains[v].copy() 
-                for v in self.crossword.variables
-            }
+            # 2. Forward Checking: Propagate constraints to unassigned neighbors
+            # Save current domains to restore them on backtrack
+            old_domains: Domain = {v: self.domains[v].copy() for v in self.crossword.variables}
+            
+            # Assume consistent until proven otherwise
+            is_consistent = True
             
             # Temporarily set the domain of the assigned variable to the chosen value
             self.domains[var] = {value}
             
-            # Enforce consistency on unassigned neighbors (Forward Checking)
-            is_consistent = True
+            # Enforce consistency on unassigned neighbors
             for neighbor in self.crossword.neighbors(var):
                 if neighbor not in temp_assignment:
                     # Revise the neighbor's domain based on the new assignment of var
@@ -309,30 +271,108 @@ class CrosswordCreator:
         
         return None
 
+# --- Funções CLI Interativas ---
+
+def select_file_from_list(prompt: str, search_path: str, extension_regex: str) -> str:
+    """
+    Lists files in the specified search path matching the regex and allows the user
+    to select one by number.
+    """
+    full_search_path = os.path.abspath(search_path)
+    
+    files = []
+    if os.path.isdir(full_search_path):
+        files = [
+            os.path.join(search_path, f)
+            for f in os.listdir(full_search_path)
+            if re.match(extension_regex, f, re.IGNORECASE)
+        ]
+    
+    if not files:
+        print(f"\n[ERRO] Não foram encontrados ficheiros correspondentes a '{extension_regex}' no diretório '{full_search_path}'.")
+        print("Por favor, verifique se o caminho está correto ou digite o caminho completo do ficheiro.")
+        manual_input = input(f"Caminho para o ficheiro ({prompt}): ").strip()
+        if os.path.exists(manual_input):
+            return manual_input
+        else:
+            raise FileNotFoundError(f"O ficheiro '{manual_input}' não foi encontrado.")
+
+    print(f"\n{prompt} - Ficheiros disponíveis em '{search_path}':")
+    
+    files.sort() 
+    
+    for i, file in enumerate(files):
+        display_name = os.path.basename(file)
+        print(f"  [{i + 1}] {display_name}")
+    
+    while True:
+        choice = input("Digite o NÚMERO do ficheiro ou o CAMINHO completo: ").strip()
+        
+        if choice.isdigit():
+            index = int(choice) - 1
+            if 0 <= index < len(files):
+                return files[index] 
+            else:
+                print("Escolha inválida. Por favor, digite um número da lista.")
+        elif os.path.exists(choice):
+            return choice
+        else:
+            print(f"Escolha inválida ou ficheiro não encontrado no caminho '{choice}'.")
+
 
 def main():
 
-    # Check usage
-    if len(sys.argv) not in [3, 4]:
-        sys.exit("Usage: python generate.py structure words [output]")
+    print("\n" + "="*50)
+    print("= Crossword Solver AI - Interface de Linha de Comando =")
+    print("="*50)
 
-    # Parse command-line arguments
-    structure = sys.argv[1]
-    words = sys.argv[2]
-    output = sys.argv[3] if len(sys.argv) == 4 else None
+    try:
+        structure_file = select_file_from_list(
+            prompt="Ficheiro de ESTRUTURA", 
+            search_path=os.path.join("data", "structure"), 
+            extension_regex=r".*\.txt$" 
+        )
+        words_file = select_file_from_list(
+            prompt="Ficheiro de VOCABULÁRIO", 
+            search_path=os.path.join("data", "words"), 
+            extension_regex=r".*\.txt$" 
+        )
+    except Exception as e:
+        print(f"\n[ERRO] Falha ao listar ficheiros: {e}")
+        return
 
-    # Generate crossword
-    crossword = Crossword(structure, words)
-    creator = CrosswordCreator(crossword)
-    assignment = creator.solve()
+    output_image = "output.png" 
 
-    # Print result
-    if assignment is None:
-        print("No solution.")
-    else:
-        creator.print(assignment)
-        if output:
-            creator.save(assignment, output)
+    try:
+        # 1. Generate crossword
+        print("\n[INFO] A carregar ficheiros e a processar estrutura...")
+        crossword = Crossword(structure_file, words_file)
+        creator = CrosswordCreator(crossword)
+        
+        # 2. Solve the Crossword
+        print("[INFO] A iniciar o algoritmo de resolução (CSP com Forward Checking)...")
+        assignment = creator.solve()
+
+        # 3. Print result
+        if assignment is None:
+            print("\n[RESULTADO] Não foi encontrada nenhuma solução para o problema de Crossword.")
+        else:
+            print("\n[RESULTADO] Solução Encontrada! A imprimir no terminal:")
+            creator.print(assignment)
+            
+            if output_image:
+                print(f"[INFO] A guardar a imagem do Crossword em: {output_image}")
+                creator.save(assignment, output_image)
+                print("[INFO] Imagem guardada com sucesso.")
+
+    except FileNotFoundError as e:
+        print(f"\n[ERRO FATAL] Um ficheiro necessário não foi encontrado: {e}")
+    except Exception as e:
+        print(f"\n[ERRO FATAL] Ocorreu um erro inesperado durante o processamento: {e}")
+    finally:
+        print("\n" + "="*50)
+        print("= Fim da Execução =")
+        print("="*50)
 
 
 if __name__ == "__main__":
