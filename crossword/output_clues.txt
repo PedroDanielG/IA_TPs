@@ -1,0 +1,11 @@
+--- PISTAS GERADAS POR IA ---
+
+ACROSS (Horizontal):
+(2,1) SURE: Com certeza, sem dúvidas.
+(3,4) LOST: Sem rumo ou paradeiro.
+(6,2) PIE: Torta, geralmente doce e assada.
+
+DOWN (Vertical):
+(1,7) BOTHER: Causar incômodo, como uma mosca.
+(2,1) SEND: Remeter, expedir.
+(2,4) ELITE: O grupo mais seleto e privilegiado.
